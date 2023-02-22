@@ -1,13 +1,39 @@
+import { useRef } from "react";
 import Snap from "../components/snap";
 
 export default function IndexPage() {
   return (
     <>
-      <div>
-        <h1 className="shadow-md flex items-center space-x-4 p-4 m-4">
-          jklasdjflkadjfasdfasd
-        </h1>
-      </div>
+      <img
+        src="https://i.scdn.co/image/ab67616d0000b2735b488007c7ccabec7768ef14"
+        alt=""
+        className="select-none"
+      />
+      <img
+        src="https://i.scdn.co/image/ab67616d0000b2735b488007c7ccabec7768ef14"
+        alt=""
+        className="select-none"
+      />
+      <img
+        src="https://i.scdn.co/image/ab67616d0000b2735b488007c7ccabec7768ef14"
+        alt=""
+        className="select-none"
+      />
+      <img
+        src="https://i.scdn.co/image/ab67616d0000b2735b488007c7ccabec7768ef14"
+        alt=""
+        className="select-none"
+      />
+      <img
+        src="https://i.scdn.co/image/ab67616d0000b2735b488007c7ccabec7768ef14"
+        alt=""
+        className="select-none"
+      />
+      <img
+        src="https://i.scdn.co/image/ab67616d0000b2735b488007c7ccabec7768ef14"
+        alt=""
+        className="select-none"
+      />
       <Snap />
     </>
   );

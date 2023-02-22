@@ -1,124 +1,206 @@
-import React, { MouseEventHandler, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import html2canvas from "html2canvas";
 
-const Snap = () => {
-  const canvasRef = useRef<HTMLCanvasElement>();
+interface Props {}
 
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [selection, setSelection] = useState({
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0
+const Snap: React.FC<Props> = (props) => {
+  const imgRef = useRef<{
+    src: string;
+    alt: string;
+  }>({
+    src: "",
+    alt: "",
   });
+  const [previewImage, setPreviewImage] = useState<boolean>(false);
+  const scrollRef = useRef<number[]>([]);
   const [dimm, setDimm] = useState<number[]>([]);
+  const bodyTagRef = useRef<HTMLElement>();
+  const canvasRef = useRef<HTMLCanvasElement>();
+  const actionBtnRef = useRef<HTMLButtonElement>();
 
   useEffect(() => {
-    setDimm([window.innerHeight, window.innerWidth]);
+    bodyTagRef.current = document.body;
+  }, []);
+
+  const disableScroll = () => {
+    if (bodyTagRef.current) {
+      bodyTagRef.current.addEventListener(
+        "wheel",
+        function(event) {
+          if (previewImage) {
+            event.preventDefault();
+          } else {
+            return;
+          }
+        },
+        { passive: false }
+      );
+
+      // Disable scrolling using the directional keys
+      bodyTagRef.current.addEventListener("keydown", function(event) {
+        // Check if the arrow keys are pressed
+        if (
+          event.key === "ArrowUp" ||
+          event.key === "ArrowDown" ||
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight"
+        ) {
+          if (previewImage) {
+            event.preventDefault();
+          } else {
+            return;
+          }
+        }
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (previewImage) {
+      const canvas = canvasRef.current;
+
+      canvas.width = dimm[0];
+      canvas.height = dimm[1] - 2;
+
+      const context = canvas.getContext("2d");
+
+      context.strokeStyle = "#2F58CD";
+      context.lineWidth = 4;
+
+      const image = new Image();
+
+      image.src = imgRef.current.src;
+
+      context.strokeRect(0, 0, canvas.width, canvas.height);
+
+      image.onload = () => {
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      };
+      bodyTagRef.current.style.visibility = "hidden";
+      bodyTagRef.current.style.height = `${dimm[1]}px`;
+      disableScroll();
+    } else {
+      bodyTagRef.current.style.visibility = "visible";
+      bodyTagRef.current.style.height = `auto`;
+      actionBtnRef.current.style.visibility = "visible";
+      disableScroll();
+    }
+  }, [previewImage]);
+
+  useEffect(() => {
+    setDimm([window.innerWidth, window.innerHeight]);
+    scrollRef.current = [window.scrollX, window.scrollY];
 
     window.addEventListener("resize", () => {
-      setDimm([window.innerHeight, window.innerWidth]);
+      setDimm([window.innerWidth, window.innerHeight]);
+    });
+
+    window.addEventListener("scroll", () => {
+      scrollRef.current = [window.scrollX, window.scrollY];
     });
 
     return () => {
       window.removeEventListener("resize", () => {
-        setDimm([window.innerHeight, window.innerWidth]);
+        setDimm([window.innerWidth, window.innerHeight]);
+      });
+
+      window.removeEventListener("resize", () => {
+        setDimm([window.scrollX, scrollY]);
       });
     };
   }, []);
 
-  const handleMouseDown: MouseEventHandler<HTMLCanvasElement> = event => {
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    setIsSelecting(true);
-    setSelection({ x, y, width: 0, height: 0 });
-    context.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  // useEffect(() => {
-  //   let svgCursor: string = "auto";
-  //   if (isSelecting) {
-  //     svgCursor =
-  //       "url('data:image/svg+xml,%3Csvg stroke-width='0.4px' stroke='white' fill='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'%3E%3Cpath clip-rule='evenodd' fill-rule='evenodd' d='M8.128 9.155a3.751 3.751 0 11.713-1.321l1.136.656a.75.75 0 01.222 1.104l-.006.007a.75.75 0 01-1.032.157 1.421 1.421 0 00-.113-.072l-.92-.531zm-4.827-3.53a2.25 2.25 0 013.994 2.063.756.756 0 00-.122.23 2.25 2.25 0 01-3.872-2.293zM13.348 8.272a5.073 5.073 0 00-3.428 3.57c-.101.387-.158.79-.165 1.202a1.415 1.415 0 01-.707 1.201l-.96.554a3.751 3.751 0 10.734 1.309l13.729-7.926a.75.75 0 00-.181-1.374l-.803-.215a5.25 5.25 0 00-2.894.05l-5.325 1.629zm-9.223 7.03a2.25 2.25 0 102.25 3.897 2.25 2.25 0 00-2.25-3.897zM12 12.75a.75.75 0 100-1.5.75.75 0 000 1.5z'%3E%3C/path%3E%3Cpath d='M16.372 12.615a.75.75 0 01.75 0l5.43 3.135a.75.75 0 01-.182 1.374l-.802.215a5.25 5.25 0 01-2.894-.051l-5.147-1.574a.75.75 0 01-.156-1.367l3-1.732z'%3E%3C/path%3E%3C/svg%3E')";
-  //   } else {
-  //     svgCursor = "auto";
-  //   }
-  //   document.body.style.cursor = svgCursor;
-  // }, [isSelecting]);
-
-  const handleMouseMove: MouseEventHandler<HTMLCanvasElement> = event => {
-    if (!isSelecting) {
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const width = x - selection.x;
-    const height = y - selection.y;
-    setSelection({ ...selection, width, height });
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "rgba(0, 0, 0, 0)";
-    // context.strokeStyle = "blue";
-    // context.lineWidth = 2;
-    // context.stroke();
-    context.fillRect(selection.x, selection.y, width, height);
-  };
-
-  const handleMouseUp: MouseEventHandler<HTMLCanvasElement> = () => {
-    setIsSelecting(false);
-  };
-
-  const handleCaptureClick = () => {
-    const canvas = canvasRef.current;
-    const { x, y, width, height } = selection;
-    const dataUrl = canvas.toDataURL("image/png", 1.0);
-    console.log({ dataUrl });
-    const img = new Image();
-    img.src = dataUrl;
-    img.onload = () => {
-      const canvas2 = document.createElement("canvas");
-      canvas2.width = width;
-      canvas2.height = height;
-      const context2 = canvas2.getContext("2d");
-      context2.drawImage(img, x, y, width, height, 0, 0, width, height);
-      const dataUrl2 = canvas2.toDataURL("image/png", 1.0);
-      console.log({ dataUrl2 });
-    };
+  const captureScreenshot = () => {
+    actionBtnRef.current.style.visibility = "hidden";
+    html2canvas(bodyTagRef.current, {
+      useCORS: true,
+      allowTaint: true,
+      logging: true,
+      width: dimm[0],
+      height: dimm[1],
+      windowHeight: dimm[0],
+      windowWidth: dimm[1],
+      x: bodyTagRef.current.getBoundingClientRect().left,
+      y: bodyTagRef.current.getBoundingClientRect().top,
+    }).then((canvas) => {
+      imgRef.current.src = canvas.toDataURL();
+      imgRef.current.alt = `${new Date().getTime()}-snap`;
+      console.log(canvas.toDataURL());
+      setPreviewImage(true);
+    });
   };
 
   return (
-    <div>
+    <div className="snappy-container">
       <canvas
         ref={canvasRef}
-        width={dimm[1]}
-        height={dimm[0]}
-        style={{ position: "absolute", top: 0, left: 0, zIndex: 9999 }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      />
-      <img
         style={{
+          zIndex: 999,
+          visibility: previewImage ? "visible" : "hidden",
           position: "absolute",
-          bottom: "32px",
-          right: "32px"
+          top: 0,
+          left: 0,
+          border: "4px solid #2F58CD",
+          borderRadius: "8px",
+          overflow: "hidden",
+          maxWidth: "100%",
         }}
       />
-      <button
-        style={{
-          cursor: "pointer !important"
-        }}
-        onClick={handleCaptureClick}
-      >
-        Capture
-      </button>
+      <div className="action-btns">
+        <button
+          ref={actionBtnRef}
+          className="action-btn"
+          onClick={captureScreenshot}
+        >
+          <svg
+            fill="none"
+            stroke="currentColor"
+            height={24}
+            width={24}
+            strokeWidth={1.5}
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };
 
 export default Snap;
+
+//         {showCanvas && (
+//           <button
+//             className="action-btn"
+//             onClick={() => {
+//               setShowCanvas(false);
+//             }}
+//           >
+//             <svg
+//               fill="currentColor"
+//               viewBox="0 0 24 24"
+//               xmlns="http://www.w3.org/2000/svg"
+//               aria-hidden="true"
+//               height={24}
+//               width={24}
+//             >
+//               <path
+//                 clipRule="evenodd"
+//                 fillRule="evenodd"
+//                 d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
+//               />
+//             </svg>
+//           </button>
+//         )}
