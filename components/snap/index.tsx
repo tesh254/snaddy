@@ -208,21 +208,74 @@ const Snap: React.FC<Props> = (props) => {
       overlayCanvasRef.current.height
     );
 
-    const width = mouseX - startPointsRef.current.x;
-    const height = mouseY - startPointsRef.current.y;
+    let width = mouseX - startPointsRef.current.x;
+    let height = mouseY - startPointsRef.current.y;
 
-    ctx.strokeStyle = "blue";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(
-      startPointsRef.current.x,
-      startPointsRef.current.y,
-      width,
-      height
+    let actualStartX = startPointsRef.current.x;
+    let actualStartY = startPointsRef.current.y;
+    if (width < 0) {
+      actualStartX = mouseX;
+      width = Math.abs(width);
+    }
+    if (height < 0) {
+      actualStartY = mouseY;
+      height = Math.abs(height);
+    }
+
+    ctx.strokeStyle = "#2F58CD";
+    ctx.lineWidth = 4;
+    const borderRadius = 6;
+    ctx.beginPath();
+    ctx.moveTo(
+      actualStartX + borderRadius,
+      actualStartY
     );
+    ctx.lineTo(
+      actualStartX + width - borderRadius,
+      actualStartY
+    );
+    ctx.quadraticCurveTo(
+      actualStartX + width,
+      actualStartY,
+      actualStartX + width,
+      actualStartY + borderRadius
+    );
+    ctx.lineTo(
+      actualStartX + width,
+      actualStartY + height - borderRadius
+    );
+    ctx.quadraticCurveTo(
+      actualStartX + width,
+      actualStartY + height,
+      actualStartX + width - borderRadius,
+      actualStartY + height
+    );
+    ctx.lineTo(
+      actualStartX + borderRadius,
+      actualStartY + height
+    );
+    ctx.quadraticCurveTo(
+      actualStartX,
+      actualStartY + height,
+      actualStartX,
+      actualStartY + height - borderRadius
+    );
+    ctx.lineTo(
+      actualStartX,
+      actualStartY + borderRadius
+    );
+    ctx.quadraticCurveTo(
+      actualStartX,
+      actualStartY,
+      actualStartX + borderRadius,
+      actualStartY
+    );
+    ctx.closePath();
+    ctx.stroke();
 
     points.current = {
-      x1: startPointsRef.current.x,
-      y1: startPointsRef.current.y,
+      x1: actualStartX,
+      y1: actualStartY,
       x2: width,
       y2: height,
     };
@@ -246,10 +299,10 @@ const Snap: React.FC<Props> = (props) => {
       />
       <canvas
         ref={overlayCanvasRef}
-        onMouseDown={(e) => handleMouseDown(e as unknown as MouseEvent)}
-        onMouseMove={(e) => handleMouseMove(e as unknown as MouseEvent)}
-        onMouseUp={(e) => handleMouseUp(e as unknown as MouseEvent)}
-        onMouseOut={(e) => handleMouseOut(e as unknown as MouseEvent)}
+        onMouseDown={(e) => handleMouseDown((e as unknown) as MouseEvent)}
+        onMouseMove={(e) => handleMouseMove((e as unknown) as MouseEvent)}
+        onMouseUp={(e) => handleMouseUp((e as unknown) as MouseEvent)}
+        onMouseOut={(e) => handleMouseOut((e as unknown) as MouseEvent)}
         style={{
           zIndex: 9999,
           visibility: previewImage ? "visible" : "hidden",
