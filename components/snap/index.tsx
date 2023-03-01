@@ -3,6 +3,18 @@ import html2canvas from "html2canvas";
 
 interface Props {}
 
+interface Points {
+  x: number;
+  y: number;
+}
+
+interface PointsOpt {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
 const Snap: React.FC<Props> = (props) => {
   const imgRef = useRef<{
     src: string;
@@ -16,7 +28,13 @@ const Snap: React.FC<Props> = (props) => {
   const [dimm, setDimm] = useState<number[]>([]);
   const bodyTagRef = useRef<HTMLElement>();
   const canvasRef = useRef<HTMLCanvasElement>();
+  const overlayCanvasRef = useRef<HTMLCanvasElement>();
   const actionBtnRef = useRef<HTMLButtonElement>();
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const offsetRef = useRef<Points>({ x: 0, y: 0 });
+  const startPointsRef = useRef<Points>({ x: 0, y: 0 });
+  const points = useRef<PointsOpt>({ x1: 0, y1: 0, x2: 0, y2: 0 });
+  const isMouseDownRef = useRef<boolean>(false);
 
   useEffect(() => {
     bodyTagRef.current = document.body;
@@ -57,6 +75,19 @@ const Snap: React.FC<Props> = (props) => {
 
   useEffect(() => {
     if (previewImage) {
+      const overlayCanvas = overlayCanvasRef.current;
+
+      overlayCanvas.width = dimm[0];
+      overlayCanvas.height = dimm[1] - 2;
+
+      const overlayContext = overlayCanvas.getContext("2d");
+
+      ctxRef.current = overlayContext;
+
+      const offset = overlayCanvas.getBoundingClientRect();
+
+      offsetRef.current = { x: offset.left, y: offset.top };
+
       const canvas = canvasRef.current;
 
       canvas.width = dimm[0];
@@ -130,12 +161,97 @@ const Snap: React.FC<Props> = (props) => {
     });
   };
 
+  const handleMouseDown = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    startPointsRef.current = {
+      x: e.clientX - offsetRef.current.x,
+      y: e.clientY - offsetRef.current.y,
+    };
+
+    isMouseDownRef.current = true;
+  };
+
+  const handleMouseUp = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    isMouseDownRef.current = false;
+  };
+
+  const handleMouseOut = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // the drag is over, clear the dragging flag
+    isMouseDownRef.current = false;
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isMouseDownRef.current) {
+      return;
+    }
+
+    const mouseX = e.clientX - offsetRef.current.x;
+    const mouseY = e.clientY - offsetRef.current.y;
+
+    const ctx = ctxRef.current;
+
+    ctx.clearRect(
+      0,
+      0,
+      overlayCanvasRef.current.width,
+      overlayCanvasRef.current.height
+    );
+
+    const width = mouseX - startPointsRef.current.x;
+    const height = mouseY - startPointsRef.current.y;
+
+    ctx.strokeStyle = "blue";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(
+      startPointsRef.current.x,
+      startPointsRef.current.y,
+      width,
+      height
+    );
+
+    points.current = {
+      x1: startPointsRef.current.x,
+      y1: startPointsRef.current.y,
+      x2: width,
+      y2: height,
+    };
+  };
+
   return (
     <div className="snappy-container">
       <canvas
         ref={canvasRef}
         style={{
           zIndex: 999,
+          visibility: previewImage ? "visible" : "hidden",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          border: "4px solid #2F58CD",
+          borderRadius: "8px",
+          overflow: "hidden",
+          maxWidth: "100%",
+        }}
+      />
+      <canvas
+        ref={overlayCanvasRef}
+        onMouseDown={(e) => handleMouseDown(e as unknown as MouseEvent)}
+        onMouseMove={(e) => handleMouseMove(e as unknown as MouseEvent)}
+        onMouseUp={(e) => handleMouseUp(e as unknown as MouseEvent)}
+        onMouseOut={(e) => handleMouseOut(e as unknown as MouseEvent)}
+        style={{
+          zIndex: 9999,
           visibility: previewImage ? "visible" : "hidden",
           position: "absolute",
           top: 0,
@@ -180,27 +296,3 @@ const Snap: React.FC<Props> = (props) => {
 };
 
 export default Snap;
-
-//         {showCanvas && (
-//           <button
-//             className="action-btn"
-//             onClick={() => {
-//               setShowCanvas(false);
-//             }}
-//           >
-//             <svg
-//               fill="currentColor"
-//               viewBox="0 0 24 24"
-//               xmlns="http://www.w3.org/2000/svg"
-//               aria-hidden="true"
-//               height={24}
-//               width={24}
-//             >
-//               <path
-//                 clipRule="evenodd"
-//                 fillRule="evenodd"
-//                 d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
-//               />
-//             </svg>
-//           </button>
-//         )}
