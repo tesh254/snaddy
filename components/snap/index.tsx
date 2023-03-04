@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
+import { drawRectangle, uuidv4 } from "./canvas-helpers";
 
 interface Props {}
 
@@ -13,6 +14,10 @@ interface PointsOpt {
   y1: number;
   x2: number;
   y2: number;
+}
+
+interface Selectable extends PointsOpt {
+  id: string;
 }
 
 const Snap: React.FC<Props> = (props) => {
@@ -35,6 +40,8 @@ const Snap: React.FC<Props> = (props) => {
   const startPointsRef = useRef<Points>({ x: 0, y: 0 });
   const points = useRef<PointsOpt>({ x1: 0, y1: 0, x2: 0, y2: 0 });
   const isMouseDownRef = useRef<boolean>(false);
+  // const [selectable, setSelectable] = useState<Selectable[]>([]);
+  const [selectables, setSelectables] = useState<Selectable[]>([]);
 
   useEffect(() => {
     bodyTagRef.current = document.body;
@@ -103,10 +110,11 @@ const Snap: React.FC<Props> = (props) => {
       image.src = imgRef.current.src;
 
       context.strokeRect(0, 0, canvas.width, canvas.height);
-
+      console.time(">imageGeneration");
       image.onload = () => {
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
       };
+      console.timeEnd(">imageGeneration");
       bodyTagRef.current.style.visibility = "hidden";
       bodyTagRef.current.style.height = `${dimm[1]}px`;
       disableScroll();
@@ -156,7 +164,6 @@ const Snap: React.FC<Props> = (props) => {
     }).then((canvas) => {
       imgRef.current.src = canvas.toDataURL();
       imgRef.current.alt = `${new Date().getTime()}-snap`;
-      console.log(canvas.toDataURL());
       setPreviewImage(true);
     });
   };
@@ -176,43 +183,45 @@ const Snap: React.FC<Props> = (props) => {
   const handleMouseUp = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
+  
     isMouseDownRef.current = false;
+  
+    const pointsWithOffset = {
+      x1: points.current.x1,
+      y1: points.current.y1,
+      x2: points.current.x2 - offsetRef.current.x,
+      y2: points.current.y2 + offsetRef.current.y,
+    };
+  
+    const p = {
+      ...pointsWithOffset,
+      id: uuidv4(),
+    };
+  
+    setSelectables((prev) => [...prev, p]);
+  
+    points.current = { x1: 0, y1: 0, x2: 0, y2: 0 };
+    startPointsRef.current = { x: 0, y: 0 };
   };
-
-  const handleMouseOut = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // the drag is over, clear the dragging flag
-    isMouseDownRef.current = false;
-  };
-
+  
   const handleMouseMove = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
+  
     if (!isMouseDownRef.current) {
       return;
     }
-
+  
     const mouseX = e.clientX - offsetRef.current.x;
     const mouseY = e.clientY - offsetRef.current.y;
-
+  
     const ctx = ctxRef.current;
-
-    ctx.clearRect(
-      0,
-      0,
-      overlayCanvasRef.current.width,
-      overlayCanvasRef.current.height
-    );
-
+  
     let width = mouseX - startPointsRef.current.x;
     let height = mouseY - startPointsRef.current.y;
-
-    let actualStartX = startPointsRef.current.x;
-    let actualStartY = startPointsRef.current.y;
+  
+    let actualStartX = startPointsRef.current.x - offsetRef.current.x;
+    let actualStartY = startPointsRef.current.y - offsetRef.current.y;
     if (width < 0) {
       actualStartX = mouseX;
       width = Math.abs(width);
@@ -221,72 +230,50 @@ const Snap: React.FC<Props> = (props) => {
       actualStartY = mouseY;
       height = Math.abs(height);
     }
-
-    ctx.strokeStyle = "#2F58CD";
-    ctx.lineWidth = 4;
-    const borderRadius = 6;
-    ctx.beginPath();
-    ctx.moveTo(
-      actualStartX + borderRadius,
-      actualStartY
-    );
-    ctx.lineTo(
-      actualStartX + width - borderRadius,
-      actualStartY
-    );
-    ctx.quadraticCurveTo(
-      actualStartX + width,
-      actualStartY,
-      actualStartX + width,
-      actualStartY + borderRadius
-    );
-    ctx.lineTo(
-      actualStartX + width,
-      actualStartY + height - borderRadius
-    );
-    ctx.quadraticCurveTo(
-      actualStartX + width,
-      actualStartY + height,
-      actualStartX + width - borderRadius,
-      actualStartY + height
-    );
-    ctx.lineTo(
-      actualStartX + borderRadius,
-      actualStartY + height
-    );
-    ctx.quadraticCurveTo(
-      actualStartX,
-      actualStartY + height,
-      actualStartX,
-      actualStartY + height - borderRadius
-    );
-    ctx.lineTo(
-      actualStartX,
-      actualStartY + borderRadius
-    );
-    ctx.quadraticCurveTo(
-      actualStartX,
-      actualStartY,
-      actualStartX + borderRadius,
-      actualStartY
-    );
-    ctx.closePath();
-    ctx.stroke();
-
+  
     points.current = {
       x1: actualStartX,
       y1: actualStartY,
       x2: width,
       y2: height,
     };
+
+    console.log({ points: points.current });
+  
+    requestAnimationFrame(() => {
+      ctx.clearRect(
+        0,
+        0,
+        overlayCanvasRef.current.width,
+        overlayCanvasRef.current.height
+      );
+
+      selectables.map(item => {
+        drawRectangle(ctx, item.x1, item.y1, item.x2, item.y2);
+      })
+  
+      ctx.strokeStyle = "#2F58CD";
+      ctx.lineWidth = 4;
+      drawRectangle(ctx, actualStartX, actualStartY, width, height);
+  
+      ctxRef.current = ctx;
+    });
   };
 
-  return (
-    <div className="snappy-container">
+    const handleMouseOut = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+  
+      // the drag is over, clear the dragging flag
+      isMouseDownRef.current = false;
+    };
+    
+    return (
+      <div className="snappy-container">
       <canvas
         ref={canvasRef}
         style={{
-          zIndex: 999,
+          zIndex: 99,
           visibility: previewImage ? "visible" : "hidden",
           position: "absolute",
           top: 0,
@@ -304,12 +291,11 @@ const Snap: React.FC<Props> = (props) => {
         onMouseUp={(e) => handleMouseUp((e as unknown) as MouseEvent)}
         onMouseOut={(e) => handleMouseOut((e as unknown) as MouseEvent)}
         style={{
-          zIndex: 9999,
+          zIndex: 100,
           visibility: previewImage ? "visible" : "hidden",
           position: "absolute",
           top: 0,
           left: 0,
-          border: "4px solid #2F58CD",
           borderRadius: "8px",
           overflow: "hidden",
           maxWidth: "100%",
